@@ -1,22 +1,22 @@
 import argparse
+
 import numpy as np
 from keras.applications.xception import preprocess_input
-from keras.preprocessing import image
 from keras.models import load_model
+from keras.preprocessing import image
 
 parser = argparse.ArgumentParser()
-parser.add_argument('model')
-parser.add_argument('classes')
-parser.add_argument('image')
-parser.add_argument('--top_n', type=int, default=10)
+parser.add_argument("model")
+parser.add_argument("classes")
+parser.add_argument("image")
+parser.add_argument("--top_n", type=int, default=10)
 
 
 def main(args):
-
     model = load_model(args.model)
 
     classes = []
-    with open(args.classes, 'r') as f:
+    with open(args.classes, "r") as f:
         classes = list(map(lambda x: x.strip(), f.readlines()))
 
     img = image.load_img(args.image, target_size=(299, 299))
@@ -35,6 +35,6 @@ def main(args):
         print("Probability: %.2f%%" % (prob))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parser.parse_args()
     main(args)

@@ -1,16 +1,17 @@
 # coding: utf-8
 
-__author__ = 'cleardusk'
+__author__ = "cleardusk"
 
 import sys
 
-sys.path.append('..')
+sys.path.append("..")
 
 import cv2
 import numpy as np
-
 from Sim3DR import rasterize
+
 from utils.functions import plot_image
+
 from .tddfa_util import _to_ctype
 
 
@@ -35,7 +36,7 @@ def depth(img, ver_lst, tri, show_flag=False, wfp=None, with_bg_flag=True):
 
     if wfp is not None:
         cv2.imwrite(wfp, overlap)
-        print(f'Save visualization result to {wfp}')
+        print(f"Save visualization result to {wfp}")
 
     if show_flag:
         plot_image(overlap)

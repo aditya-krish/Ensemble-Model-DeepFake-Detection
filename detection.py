@@ -1,13 +1,15 @@
-import os
 import argparse
+import os
 from os.path import join
+
 import cv2
 import dlib
+import sklearn as sk
 import torch
 import torch.nn as nn
 from PIL import Image as pil_image
 from tqdm import tqdm
-import sklearn as sk
+
 from helper_codes.transform import transform_xception
 from network.models import model_selection
 
@@ -36,7 +38,7 @@ def preprocess_image(image, cuda=False):
     # Revert from BGR
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # Preprocess using the preprocessing function used during training and
-    preprocess = transform_xception['test']
+    preprocess = transform_xception["test"]
     preprocessed_image = preprocess(pil_image.fromarray(image))
     # Add first dimension as the network expects a batch
     preprocessed_image = preprocessed_image.unsqueeze(0)
@@ -45,8 +47,7 @@ def preprocess_image(image, cuda=False):
     return preprocessed_image
 
 
-def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
-                       cuda=False):
+def predict_with_model(image, model, post_function=nn.Softmax(dim=1), cuda=False):
     # Preprocess
     preprocessed_image = preprocess_image(image, cuda)
 
@@ -61,16 +62,17 @@ def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
     return int(prediction), output
 
 
-def test_full_image_network(video_path, model_path, output_path, fast,
-                            start_frame=0, end_frame=None, cuda=False):
-    print('Starting: {}'.format(video_path))
+def test_full_image_network(
+    video_path, model_path, output_path, fast, start_frame=0, end_frame=None, cuda=False
+):
+    print("Starting: {}".format(video_path))
 
     # Read and write
     reader = cv2.VideoCapture(video_path)
 
-    video_fn = video_path.split('/')[-1].split('.')[0]+'.avi'
+    video_fn = video_path.split("/")[-1].split(".")[0] + ".avi"
     os.makedirs(output_path, exist_ok=True)
-    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    fourcc = cv2.VideoWriter_fourcc(*"MJPG")
     fps = reader.get(cv2.CAP_PROP_FPS)
     num_frames = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
     writer = None
@@ -79,12 +81,14 @@ def test_full_image_network(video_path, model_path, output_path, fast,
     face_detector = dlib.get_frontal_face_detector()
 
     # Load model
-    model = model_selection(modelname='xception', num_out_classes=2,dropout= 0.5)
+    model = model_selection(modelname="xception", num_out_classes=2, dropout=0.5)
     if model_path is not None:
-        model = torch.load(model_path, map_location="cuda" if torch.cuda.is_available() else "cpu")
-        print('Model found in {}'.format(model_path))
+        model = torch.load(
+            model_path, map_location="cuda" if torch.cuda.is_available() else "cpu"
+        )
+        print("Model found in {}".format(model_path))
     else:
-        print('No model found, initializing random model.')
+        print("No model found, initializing random model.")
     if cuda:
         model = model.cuda()
 
@@ -101,7 +105,7 @@ def test_full_image_network(video_path, model_path, output_path, fast,
     frame_num = 0
     assert start_frame < num_frames - 1
     end_frame = end_frame if end_frame else num_frames
-    pbar = tqdm(total=end_frame-start_frame)
+    pbar = tqdm(total=end_frame - start_frame)
 
     while reader.isOpened():
         _, image = reader.read()
@@ -111,9 +115,8 @@ def test_full_image_network(video_path, model_path, output_path, fast,
             frame_num += 10
             pbar.update(10)
         else:
-            frame_num+= 1
+            frame_num += 1
             pbar.update(1)
-
 
         if frame_num < start_frame:
             continue
@@ -121,8 +124,9 @@ def test_full_image_network(video_path, model_path, output_path, fast,
         height, width = image.shape[:2]
 
         if writer is None:
-            writer = cv2.VideoWriter(join(output_path, video_fn), fourcc, fps,
-                                     (height, width)[::-1])
+            writer = cv2.VideoWriter(
+                join(output_path, video_fn), fourcc, fps, (height, width)[::-1]
+            )
 
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         faces = face_detector(gray, 1)
@@ -131,26 +135,33 @@ def test_full_image_network(video_path, model_path, output_path, fast,
             face = faces[0]
 
             x, y, size = get_boundingbox(face, width, height)
-            cropped_face = image[y:y+size, x:x+size]
+            cropped_face = image[y : y + size, x : x + size]
 
-            #prediction using our model
-            prediction, output = predict_with_model(cropped_face, model,
-                                                    cuda=cuda)
+            # prediction using our model
+            prediction, output = predict_with_model(cropped_face, model, cuda=cuda)
 
             if prediction == 1:
                 ff += 1
-            ffn +=1
+            ffn += 1
             x = face.left()
             y = face.top()
             w = face.right() - x
             h = face.bottom() - y
-            label = 'fake' if prediction == 1 else 'real'
+            label = "fake" if prediction == 1 else "real"
             color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
-            output_list = ['{0:.2f}'.format(float(x)) for x in
-                           output.detach().cpu().numpy()[0]]
-            cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
-                        font_face, font_scale,
-                        color, thickness, 2)
+            output_list = [
+                "{0:.2f}".format(float(x)) for x in output.detach().cpu().numpy()[0]
+            ]
+            cv2.putText(
+                image,
+                str(output_list) + "=>" + label,
+                (x, y + h + 30),
+                font_face,
+                font_scale,
+                color,
+                thickness,
+                2,
+            )
             # draw box over face
             cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
 
@@ -160,7 +171,7 @@ def test_full_image_network(video_path, model_path, output_path, fast,
         writer.write(image)
 
     pbar.close()
-    p = ff /float(ffn) * 100;
+    p = ff / float(ffn) * 100
 
     if writer is not None:
         out = {}
@@ -169,4 +180,4 @@ def test_full_image_network(video_path, model_path, output_path, fast,
         out["file"] = video_fn
         return out
     else:
-        print('Input video file was empty')
+        print("Input video file was empty")

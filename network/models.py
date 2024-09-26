@@ -2,17 +2,17 @@
 
 Author: Andreas Rössler
 """
-import os
 import argparse
+import math
+import os
 
-
-import torch
 import pretrainedmodels
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from   network.xception import xception, xception_concat
-import math
 import torchvision
+
+from network.xception import xception, xception_concat
 
 
 def return_pytorch04_xception(pretrained=False):
@@ -22,10 +22,9 @@ def return_pytorch04_xception(pretrained=False):
         # Load model in torch 0.4+
         model.fc = model.last_linear
         del model.last_linear
-        state_dict = torch.load(
-            '/public/liuhonggu/.torch/models/xception-b5690688.pth')
+        state_dict = torch.load("/public/liuhonggu/.torch/models/xception-b5690688.pth")
         for name, weights in state_dict.items():
-            if 'pointwise' in name:
+            if "pointwise" in name:
                 state_dict[name] = weights.unsqueeze(-1).unsqueeze(-1)
         model.load_state_dict(state_dict)
         model.last_linear = model.fc
@@ -38,36 +37,35 @@ class TransferModel(nn.Module):
     Simple transfer learning model that takes an imagenet pretrained model with
     a fc layer as base model and retrains a new fc layer for num_out_classes
     """
+
     def __init__(self, modelchoice, num_out_classes=2, dropout=0.5):
         super(TransferModel, self).__init__()
         self.modelchoice = modelchoice
-        if modelchoice == 'xception':
+        if modelchoice == "xception":
             self.model = return_pytorch04_xception(pretrained=False)
             # Replace fc
             num_ftrs = self.model.last_linear.in_features
             if not dropout:
                 self.model.last_linear = nn.Linear(num_ftrs, num_out_classes)
             else:
-                print('Using dropout', dropout)
+                print("Using dropout", dropout)
                 self.model.last_linear = nn.Sequential(
-                    nn.Dropout(p=dropout),
-                    nn.Linear(num_ftrs, num_out_classes)
+                    nn.Dropout(p=dropout), nn.Linear(num_ftrs, num_out_classes)
                 )
-        elif modelchoice == 'xception_concat':
+        elif modelchoice == "xception_concat":
             self.model = xception_concat()
             num_ftrs = self.model.last_linear.in_features
             if not dropout:
                 self.model.last_linear = nn.Linear(num_ftrs, num_out_classes)
             else:
-                print('Using dropout', dropout)
+                print("Using dropout", dropout)
                 self.model.last_linear = nn.Sequential(
-                    nn.Dropout(p=dropout),
-                    nn.Linear(num_ftrs, num_out_classes)
+                    nn.Dropout(p=dropout), nn.Linear(num_ftrs, num_out_classes)
                 )
-        elif modelchoice == 'resnet50' or modelchoice == 'resnet18':
-            if modelchoice == 'resnet50':
+        elif modelchoice == "resnet50" or modelchoice == "resnet18":
+            if modelchoice == "resnet50":
                 self.model = torchvision.models.resnet50(pretrained=True)
-            if modelchoice == 'resnet18':
+            if modelchoice == "resnet18":
                 self.model = torchvision.models.resnet18(pretrained=True)
             # Replace fc
             num_ftrs = self.model.fc.in_features
@@ -75,11 +73,10 @@ class TransferModel(nn.Module):
                 self.model.fc = nn.Linear(num_ftrs, num_out_classes)
             else:
                 self.model.fc = nn.Sequential(
-                    nn.Dropout(p=dropout),
-                    nn.Linear(num_ftrs, num_out_classes)
+                    nn.Dropout(p=dropout), nn.Linear(num_ftrs, num_out_classes)
                 )
         else:
-            raise Exception('Choose valid model, e.g. resnet50')
+            raise Exception("Choose valid model, e.g. resnet50")
 
     def set_trainable_up_to(self, boolean, layername="Conv2d_4a_3x3"):
         """
@@ -108,10 +105,9 @@ class TransferModel(nn.Module):
                         params.requires_grad = True
                 ct.append(name)
             if not found:
-                raise Exception('Layer not found, cant finetune!'.format(
-                    layername))
+                raise Exception("Layer not found, cant finetune!".format(layername))
         else:
-            if self.modelchoice == 'xception':
+            if self.modelchoice == "xception":
                 # Make fc trainable
                 for param in self.model.last_linear.parameters():
                     param.requires_grad = True
@@ -126,31 +122,32 @@ class TransferModel(nn.Module):
         return x
 
 
-def model_selection(modelname, num_out_classes,
-                    dropout=None):
+def model_selection(modelname, num_out_classes, dropout=None):
     """
     :param modelname:
     :return: model, image size, pretraining<yes/no>, input_list
     """
-    if modelname == 'xception':
-        return TransferModel(modelchoice='xception',
-                             num_out_classes=num_out_classes)
+    if modelname == "xception":
+        return TransferModel(modelchoice="xception", num_out_classes=num_out_classes)
     #    , 299, \True, ['image'], None
-    elif modelname == 'resnet18':
-        return TransferModel(modelchoice='resnet18', dropout=dropout,
-                             num_out_classes=num_out_classes)
+    elif modelname == "resnet18":
+        return TransferModel(
+            modelchoice="resnet18", dropout=dropout, num_out_classes=num_out_classes
+        )
     #    , \224, True, ['image'], None
-    elif modelname == 'xception_concat':
-        return TransferModel(modelchoice='xception_concat',
-                             num_out_classes=num_out_classes)
+    elif modelname == "xception_concat":
+        return TransferModel(
+            modelchoice="xception_concat", num_out_classes=num_out_classes
+        )
     else:
         raise NotImplementedError(modelname)
 
 
-if __name__ == '__main__':
-    model, image_size, *_ = model_selection('xception', num_out_classes=2)
+if __name__ == "__main__":
+    model, image_size, *_ = model_selection("xception", num_out_classes=2)
     print(model)
     model = model.cuda()
     from torch import summary
+
     input_s = (3, image_size, image_size)
     print(summary(model, input_s))

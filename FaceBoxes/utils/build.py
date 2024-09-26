@@ -8,10 +8,11 @@
 # --------------------------------------------------------
 
 import os
-from os.path import join as pjoin
-import numpy as np
 from distutils.core import setup
 from distutils.extension import Extension
+from os.path import join as pjoin
+
+import numpy as np
 from Cython.Distutils import build_ext
 
 
@@ -45,13 +46,13 @@ ext_modules = [
         ["nms/cpu_nms.pyx"],
         # extra_compile_args={'gcc': ["-Wno-cpp", "-Wno-unused-function"]},
         extra_compile_args=["-Wno-cpp", "-Wno-unused-function"],
-        include_dirs=[numpy_include]
+        include_dirs=[numpy_include],
     )
 ]
 
 setup(
-    name='mot_utils',
+    name="mot_utils",
     ext_modules=ext_modules,
     # inject our custom trigger
-    cmdclass={'build_ext': custom_build_ext},
+    cmdclass={"build_ext": custom_build_ext},
 )
